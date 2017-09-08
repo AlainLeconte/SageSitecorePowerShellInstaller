@@ -7,12 +7,6 @@ $configSettings = $null
 # Assume there is no host console available until we can read the config file.
 $hostScreenAvailable = $FALSE
 
-# Modules Installation >>
-# Load functions
-$stdFuntionsPath = (split-path -parent $PSCommandPath)
-. "$stdFuntionsPath\InstallSitecoreModules.ps1"
-# << Modules Installation
-
 #region Utility Functions
 function Write-Message([string]$Message, [string]$MessageColor="White", [bool]$WriteToLogOnly=$FALSE, [bool]$WriteToLog=$FALSE, [bool]$HostConsoleAvailable=$FALSE)
 {
@@ -2364,6 +2358,10 @@ function Initialize-WebSite
                 }
                 $hostEntry += "`n$ip $($binding.HostHeader)"
                 Add-Content $hostsPath $hostEntry
+                
+                # Fix issue >>
+                Start-Sleep -Seconds 5
+                # << Fix issue
             }
 
             $bindingIndex++
@@ -3936,5 +3934,12 @@ function Install-SitecoreApplication([string]$configPath, [bool]$SuppressOutputT
         Start-Browser
     }
 }
+
+# Modules Installation >>
+# Load functions
+$stdFuntionsPath = (split-path -parent $PSCommandPath)
+. "$stdFuntionsPath\InstallSitecoreModules.ps1"
+# << Modules Installation
+
 
 Install-SitecoreApplication $ConfigPath -SuppressOutputToScreen $FALSE

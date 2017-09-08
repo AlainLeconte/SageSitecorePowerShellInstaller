@@ -1,3 +1,21 @@
+function Start-Browser([string]$url)
+{
+    if ([string]::IsNullOrEmpty($url))
+    {
+        $url = Get-SiteUrl
+    }
+    Write-Message "`nLaunching site in browser: $url" -WriteToLog $FALSE -HostConsoleAvailable $hostScreenAvailable
+    <#
+    $ie = new-object -comobject "InternetExplorer.Application" 
+    $ie.visible = $true
+    $ie.navigate($url)
+    #>
+    Initialize-SitecoreApplication
+    START $url -Wait
+}
+
+
+
 function New-ConfigSettingsForModules([xml]$config)
 {
     $sitecoreModulesPath = $config.InstallSettings.SitecoreModulesPath

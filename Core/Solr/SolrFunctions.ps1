@@ -80,6 +80,7 @@ function SolrStartService (
                 $svStatus = (GetServiceStatus -ServiceName $serviceFullName )
                 $Return = ($svStatus -eq "Running")
                 Write-Host "$serviceFullName status: $svStatus" -ForegroundColor $(if ($Return) {"Green"} else {"Red"})
+                if($Return -eq $false) {Throw "Could not start $serviceFullName"}
             }
         }
         else 

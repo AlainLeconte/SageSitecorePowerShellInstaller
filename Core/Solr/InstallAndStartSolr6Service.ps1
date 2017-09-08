@@ -11,18 +11,10 @@
     [int]$clearHost = 1
 )
 
-if(-not($serviceDisplayName)) { $serviceDisplayName = $serviceName + "Service" }
-
 # Load functions
 $stdFuntionsPath = (split-path -parent $PSCommandPath)
 . "$stdFuntionsPath\..\Common\StandardFunctions.ps1"
 . "$stdFuntionsPath\SolrFunctions.ps1"
-
-
-$serviceFullDisplayName = "$serviceDisplayName [$servicePort]"
-$solrInstance = "Solr"+$(if ($isSlave -eq 1) {"Slave"} else {"Master"}) + "Instance"
-$solrHome = "Solr"+$(if ($isSlave -eq 1) {"Slave"} else {"Master"}) + "Home" + $solrHomeSuffix
-$exeNSSM = "$solrPath\Setup\nssm.exe"
 
 function SolrInstallService (
     [string]$serviceName,
@@ -50,8 +42,11 @@ function SolrInstallService (
 
     Try {
         if (-not(Test-Path $solrPath) -or -not(Test-Path "$solrPath\Setup")) {
-            $zipDist = "$cd\SolrForSitecoreDist-6.6.0.zip"
-            Write-Host Unzipping $zipDist to $solrPath... -ForegroundColor Black -BackgroundColor White
+            $zipDist = "$cd\Solr\SolrFor" + $solrHomeSuffix + "Dist-6.6.0.zip"
+            if (-not(Test-Path $zipDist)) {
+                $zipDist = "C:\Sage\SitecoreSites\SitecoreInstallation\Solr\SolrFor" + $solrHomeSuffix + "Dist-6.6.0.zip"
+            }
+            Write-Host-Info -Message "Unzipping $zipDist to $solrPath ..."
             Expand-Archive -LiteralPath $zipDist -DestinationPath $solrPath
             Write-Host $zipDist unzipped -ForegroundColor Green
         }
@@ -81,7 +76,7 @@ function SolrInstallService (
     Catch
     {
 
-        Write-Warning $_.Exception.Message
+        Write-Error $_.Exception.Message
         throw  
     }
 
@@ -109,7 +104,7 @@ function SolrConfigure(
 
     Try {
         $SitecoreIndexNames | % {
-	        Write-host ConfigSetName = ($_)
+	        Write-host-Param -ParamName ConfigSetName -Value ($_)
             #Create-SitecoreConfigSet -solrHomePath $solrPath\$solrHome -baseConfigSet "sitecore_configs_$(if ($isSlave) {"slave"} else {"master"})" -sitecoreConfigSetName ($_)
             Create-SitecoreConfigSet -solrHomePath $solrPath\$solrHome -isSlave $isSlave -solrMasterDNS $solrMasterDNS -sitecoreConfigSetName ($_)
         }
@@ -117,8 +112,7 @@ function SolrConfigure(
     }
     Catch
     {
-
-        Write-Warning $_.Exception.Message
+        Write-Error $_.Exception.Message
         throw  
     }
 
@@ -133,9 +127,7 @@ if ($clearHost -eq 1) {
 
 #$cd = $(Get-Location)
 $cd = $PSScriptRoot | split-path -parent
-if (-Not(Test-Path($exeNSSM))) {
-    $exeNSSM = "$PSScriptRoot\nssm.exe"
-}
+. "$($PSScriptRoot + "\cd.ps1")"
 
 Write-Host-H1 -Message "Install $serviceName - $serviceFullDisplayName"
 
@@ -149,22 +141,73 @@ foreach ($key in $MyInvocation.BoundParameters.keys)
     Write-Host-Param -ParamName $key -Value $value
 }
 Write-Host
-Write-Host-Param -ParamName "serviceFullDisplayName" -Value $serviceFullDisplayName
-Write-Host-Param -ParamName "solrInstance" -Value $solrInstance
-Write-Host-Param -ParamName "solrHome" -Value $solrHome
-Write-Host
-
 
 try {
+    if ($configPath) {
+        [xml]$configXml = Read-InstallConfigFile -configPath $configPath 
+        if (!$configXml) {Throw "Could not find configuration file at specified path: $configPath" }
+        
+        $installMaster = $(Get-ConfigOption -config $configXml -optionName "MasterSettings/enabled" -isAttribute $TRUE)
+        Write-Host-Param -ParamName installMaster -Value $installMaster 
+        $installSlave = $(Get-ConfigOption -config $configXml -optionName "SlaveSettings/enabled" -isAttribute $TRUE)
+        Write-Host-Param -ParamName installSlave -Value $installSlave        
+        if ($installMaster -eq "true") {
+            $settings = $configXml.InstallSettings.MasterSettings
+        }
+        else {
+            if ($installSlave -eq "true") {
+                $settings = $configXml.InstallSettings.SlaveSettings
+            }
+        }
+        if ($settings) {
+            $serviceName = $settings.ServiceName
+            Write-Host-Param -ParamName "serviceName" -Value $serviceName
+            $serviceDisplayName = $settings.ServiceDisplayName
+            Write-Host-Param -ParamName "serviceDisplayName" -Value $serviceDisplayName
+            $servicePort = [int]$settings.ServicePort
+            Write-Host-Param -ParamName "servicePort" -Value $servicePort
+            $solrPath = $settings.SolrPath
+            Write-Host-Param -ParamName "solrPath" -Value $solrPath
+            $solrHomeSuffix = $settings.SolrHomeSuffix
+            Write-Host-Param -ParamName "solrHomeSuffix" -Value $solrHomeSuffix
+            $isSlave = $(if ($installMaster -eq "true") {0} else {1})
+            Write-Host-Param -ParamName "isSlave" -Value $isSlave
+            if($isSlave -eq 1) {
+                $solrMasterDNS="$settings.SolrMasterHostname:$settings.SolrMasterPort"
+                Write-Host-Param -ParamName "solrMasterDNS" -Value $solrMasterDNS
+            }
+        }
+
+        if (!$SitecoreIndexNames) {
+            $SitecoreIndexNames = $configXml.InstallSettings.ConfigSets.ConfigSet
+        }
+    
+        Write-Host
+    }
+
+    if(-not($serviceDisplayName)) { 
+        $serviceDisplayName = $serviceName + "Service" 
+        Write-Host-Param -ParamName "serviceDisplayName" -Value $serviceDisplayName
+    }
+    $serviceFullDisplayName = "$serviceDisplayName [$servicePort]"
+    Write-Host-Param -ParamName "serviceFullDisplayName" -Value $serviceFullDisplayName
+    $solrInstance = "Solr"+$(if ($isSlave -eq 1) {"Slave"} else {"Master"}) + "Instance"
+    Write-Host-Param -ParamName "solrInstance" -Value $solrInstance
+    $solrHome = "Solr"+$(if ($isSlave -eq 1) {"Slave"} else {"Master"}) + "Home" + $solrHomeSuffix
+    Write-Host-Param -ParamName "solrHome" -Value $solrHome
+    $exeNSSM = "$solrPath\Setup\nssm.exe"
+    if (-Not(Test-Path($exeNSSM))) {
+        $exeNSSM = "$PSScriptRoot\nssm.exe"
+    }
+    Write-Host-Param -ParamName "exeNSSM" -Value $exeNSSM
+    Write-Host
+
     if(-not($serviceName)) { Throw "You must supply a value for -serviceName" }
     if(-not($servicePort)) { Throw "You must supply a value for -servicePort" }
     if(-not($solrPath)) { Throw "You must supply a value for -solrPath" }
+    if(-not($solrHomeSuffix)) { Throw "You must supply a value for -solrHomeSuffix" }
 
-    if (!$SitecoreIndexNames) {
-        [xml]$configXml = Read-InstallConfigFile -configPath $configPath 
-        if (!$configXml) {Throw "Could not find configuration file at specified path: $configPath" }
-        $SitecoreIndexNames = $configXml.InstallSettings.ConfigSets.ConfigSet
-    }
+    if(-not($SitecoreIndexNames)) { Throw "You must supply a value for -configPath" }
 
     if ($(SolrRemoveService -serviceName $serviceName -servicePort $servicePort) -eq $true)
     {
@@ -180,8 +223,16 @@ try {
                         $SolrBaseUrl= "http://localhost:$servicePort/solr"
                         START $SolrBaseUrl
                     }
+                    else {
+                    }
+                }
+                else {
                 }
             }
+            else {
+            }
+        }
+        else {
         }
     }
     Pause
@@ -190,4 +241,5 @@ try {
 catch {
     Write-Error $_.Exception.Message
     Pause
+    Throw $_.Exception.Message
 }

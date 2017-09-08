@@ -1,6 +1,7 @@
 param(
 	[string]$mongoDbPath = ($PSScriptRoot | split-path -parent),
     [string]$mongoDbServiceName = "MongoDB347",
+    [string]$mongoDbDNS,
     [int]$Quiet = 0,
     [int]$clearHost = 1
 )
@@ -35,7 +36,7 @@ Function UninstallMongoDB (
         if (ServiceExists -ServiceName $mongoDbServiceName)
         {
             Write-Host
-            Write-Host $mongoDbServiceName service should be stopped and removed ... -ForegroundColor Black -BackgroundColor White
+            Write-Host-Info -Message "$mongoDbServiceName service should be stopped and removed ..."
             & sc.exe stop $mongoDbServiceName
             Write-Host $mongoDbServiceName service stopped -ForegroundColor Green
             & sc.exe delete $mongoDbServiceName
@@ -43,7 +44,7 @@ Function UninstallMongoDB (
     	    
             if (Test-Path $msiFile) {
                 Write-Host
-                Write-Host Uninstalling MongoDB ($msiFile) from $mongoDbPath ... -ForegroundColor Black -BackgroundColor White
+                Write-Host-Info -Message "Uninstalling MongoDB ($msiFile) from $mongoDbPath ..."
                 Start-Process msiexec.exe -Wait -ArgumentList " /q /uninstall $msiFile INSTALLLOCATION=`"$mongoDbPath`" ADDLOCAL=`"Server,Router,Client`""
                 Write-Host MondoDB Uninstalled -ForegroundColor Green
             }
@@ -56,7 +57,7 @@ Function UninstallMongoDB (
     }
     Catch
     {
-        Write-Warning $_.Exception.Message
+        Write-Error $_.Exception.Message
         throw  
     }
 
@@ -76,50 +77,50 @@ Function RemoveMongoDBData (
         Write-Host-Param -ParamName $key -Value $value
     }
 	Write-Host
-    Write-Host Removing MongoDB from $mongoDbPath ... -ForegroundColor Black -BackgroundColor White
+    Write-Host-Info -Message "Removing MongoDB from $mongoDbPath ..."
     Try {
 
         if (Test-Path $mongoDbPath\data)
         {
             Write-Host
-            Write-Host Removing existing $cd\data folder... -ForegroundColor Black -BackgroundColor White
+            Write-Host-Info -Message "Removing existing $cd\data folder ..."
             Remove-Item $mongoDbPath\data -Force -Recurse -ErrorAction Stop
             Write-Host $mongoDbPath\data folder removed -ForegroundColor Green
         }
         else 
         {
-            Write-Host No $cd\data folder to remove
+            Write-Host-Info -Message "No $cd\data folder to remove"
         }
 
         
         if (Test-Path $mongoDbPath\mongod.cfg)
         {
             Write-Host
-            Write-Host Deleting $mongoDbPath\mongod.cfg configuration file... -ForegroundColor Black -BackgroundColor White
+            Write-Host-Info -Message "Deleting $mongoDbPath\mongod.cfg configuration file ..."
             Remove-Item $mongoDbPath\mongod.cfg -Force -ErrorAction Stop
             Write-Host $mongoDbPath\mongod.cfg file deleted -ForegroundColor Green
         }
         else 
         {
-            Write-Host No $mongoDbPath\mongod.cfg configuration file to remove
+            Write-Host-Info -Message "No $mongoDbPath\mongod.cfg configuration file to remove"
         }
 
         if (Test-Path $mongoDbPath)
         {
             Write-Host
-            Write-Host Deleting $mongoDbPath folder... -ForegroundColor Black -BackgroundColor White
+            Write-Host-Info -Message "Deleting $mongoDbPath folder ..."
             Remove-Item $mongoDbPath -Force -Recurse -ErrorAction Stop
             Write-Host $mongoDbPath folder deleted -ForegroundColor Green
         }
         else 
         {
-            Write-Host No $mongoDbPath folder to remove
+            Write-Host-Info -Message "No $mongoDbPath folder to remove"
         }
 
     }
     Catch
     {
-        Write-Warning $_.Exception.Message
+        Write-Error $_.Exception.Message
         throw  
     }
 
@@ -132,8 +133,9 @@ if ($clearHost -eq 1) {
 }
 #$cd = $(Get-Location)
 $cd = ($PSScriptRoot | split-path -parent)
+. "$($PSScriptRoot + "\cd.ps1")"
 
-Write-Host-H1 -Message "Stop and Remove MongoDB Service"
+Write-Host-H1 -Message "Stop and Remove $mongoDbServiceName"
 
 Write-Host-Param -ParamName "Script file root" -Value $PSScriptRoot
 Write-Host-Param -ParamName "Current directory" -Value $cd
@@ -145,12 +147,12 @@ foreach ($key in $MyInvocation.BoundParameters.keys)
 Write-Host
 
 try {
-    $answer = ProceedYN "Stop and Remove MongoDB Service?"
+    $answer = ProceedYN "Stop and Remove $mongoDbServiceName"
     if ($answer -eq $true) 
     {
+        UpdateHost -hostEntry $mongoDbDNS -remove
         UninstallMongoDB -mongoDbPath $mongoDbPath -mongoDbServiceName $mongoDbServiceName
         RemoveMongoDBData -mongoDbPath $mongoDbPath
-
     }
     pause
 }

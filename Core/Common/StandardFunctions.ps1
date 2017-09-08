@@ -5,7 +5,8 @@ Function Pause (
         $Shell = New-Object -ComObject "WScript.Shell"
         $Button = $Shell.Popup("Click OK to continue.", 0, "Script Paused", 0)
     }
-    else {     
+    else {
+        Write-Host
         Write-Host -NoNewline $Message
         [void][System.Console]::ReadKey($true)
         Write-Host
@@ -16,27 +17,28 @@ Function Pause (
 Function Write-Host-H1(
     [string]$Message
 ){
-    Write-Host -NoNewline "---" -ForegroundColor White -BackgroundColor Green
-    Write-Host -NoNewline " $Message "
-    Write-Host "----" -ForegroundColor White -BackgroundColor Green
+    Write-Host "$Message" -ForegroundColor Green
 }
 
 
 Function Write-Host-H2(
     [string]$Message
 ){
-    Write-Host -NoNewline "---" -ForegroundColor White -BackgroundColor Blue
-    Write-Host -NoNewline " $Message "
-    Write-Host "----" -ForegroundColor White -BackgroundColor Blue
+    Write-Host "$Message >>" -ForegroundColor DarkGreen
 }
 
 Function Write-Host-Param(
     [string]$ParamName,
     [string]$Value
 ){
-    Write-Host -NoNewline "  >" -ForegroundColor Black -BackgroundColor Yellow
-    Write-Host -NoNewline "$ParamName -> "
+    Write-Host -NoNewline " .$ParamName->" -ForegroundColor Gray 
     Write-Host $Value -ForegroundColor White
+}
+
+Function Write-Host-Info(
+    [string]$Message
+){
+    Write-Host "$Message" -ForegroundColor Cyan
 }
 
 Function ProceedYN (
@@ -44,7 +46,9 @@ Function ProceedYN (
 ) {
     if ($Quiet -eq 1) {return $true}
     Write-Host
-    $answer = Read-Host "$Message ?(y/n)"
+    Write-Host -NoNewline "$Message ?" -ForegroundColor Blue -BackgroundColor White
+    #$answer = Read-Host "$Message ?(y/n)" 
+    $answer = Read-Host "(y/n)"
     return ($answer -eq 'y')
 }
 
@@ -286,7 +290,148 @@ Function CreateSymLink (
     }
     Catch
     {
-        Write-Warning $_.Exception.Message
-        throw  
+        Write-Error $_.Exception.Message
+        Throw $_.Exception.Message
     }
+}
+
+function UpdateHost (
+    [string]$hostEntry,
+    [switch]$remove,
+    [switch]$comment
+)
+{
+	Write-Host
+	Write-Host-H2 -Message "func UpdateHost"
+    foreach ($key in $MyInvocation.BoundParameters.keys)
+    {
+        $value = (get-variable $key).Value 
+        Write-Host-Param -ParamName $key -Value $value
+    }
+	Write-Host
+    
+    Try {
+        $wd=$($env:windir)+'\system32\Drivers\etc\hosts'
+
+        if ($remove.IsPresent -or -$comment.IsPresent) {
+            If ((Get-Content $wd ) -contains "127.0.0.1	$hostEntry")
+            {
+                Write-Host
+                Write-Host-Info -Message "$(if ($comment) {'Comment'} else {'Removing'}) entry $hostEntry from Host file  ..."
+                (Get-Content $wd) -replace ("^\s*127.0.0.1\s+$hostEntry",$(if ($comment) {"#127.0.0.1	$hostEntry"} else {""})) | Out-File $wd -Force
+                Write-Host $hostEntry entry $(if ($comment) {"commented"} else {"removed"}) in Host file -ForegroundColor Green
+            }
+            else {
+                Write-Host Could not find $hostEntry entry -ForegroundColor Green
+            }
+        }
+        else {
+            If ((Get-Content $wd ) -notcontains "127.0.0.1	$hostEntry")
+            {
+                Write-Host
+                Write-Host-Info -Message "Adding $hostEntry entry to Host file ..."
+                ac -Encoding UTF8  $wd "`r`n`r`n127.0.0.1	$hostEntry";
+                Write-Host $hostEntry entry added to Host file -ForegroundColor Green
+            }
+            else {
+                Write-Host $hostEntry entry already exists -ForegroundColor Green
+            }
+        }
+    }
+    
+    Catch
+    {
+        Write-Error $_.Exception.Message
+        throw ($_) 
+    }
+}
+
+
+
+# https://gallery.technet.microsoft.com/scriptcenter/Set-FolderIcon-0bd56629
+function Set-FolderIcon 
+{ 
+    [CmdletBinding()] 
+    param 
+    (     
+        [Parameter(Mandatory=$True, 
+        Position=0)] 
+        [string[]]$Icon, 
+        [Parameter(Mandatory=$True, 
+        Position=1)] 
+        [string]$Path, 
+        [Parameter(Mandatory=$False)] 
+        [switch]$Recurse     
+    ) 
+    BEGIN 
+    { 
+        $originallocale = $PWD 
+        #Creating content of the DESKTOP.INI file. 
+        $ini = '[.ShellClassInfo] 
+                IconFile=folder.ico 
+                IconIndex=0 
+                ConfirmFileOp=0' 
+        Set-Location $Path 
+        Set-Location ..     
+        Get-ChildItem | Where-Object {$_.FullName -eq "$Path"} | ForEach {$_.Attributes = 'Directory, System'} 
+    }     
+    PROCESS 
+    { 
+        $ini | Out-File $Path\DESKTOP.INI 
+        If ($Recurse -eq $True) 
+        { 
+            Copy-Item -Path $Icon -Destination $Path\FOLDER.ICO     
+            $recursepath = Get-ChildItem $Path -r | Where-Object {$_.Attributes -match "Directory"} 
+            ForEach ($folder in $recursepath) 
+            { 
+                Set-FolderIcon -Icon $Icon -Path $folder.FullName 
+            } 
+         
+        } 
+        else 
+        { 
+            Copy-Item -Path $Icon -Destination $Path\FOLDER.ICO 
+        }     
+    }     
+    END 
+    { 
+        $inifile = Get-Item $Path\DESKTOP.INI 
+        $inifile.Attributes = 'Hidden' 
+        $icofile = Get-Item $Path\FOLDER.ICO 
+        $icofile.Attributes = 'Hidden' 
+        Set-Location $originallocale         
+    } 
+} 
+<# 
+ 
+#> 
+function Remove-SetIcon 
+{ 
+    [CmdletBinding()] 
+    param 
+    (     
+        [Parameter(Mandatory=$True, 
+        Position=0)] 
+        [string]$Path 
+    ) 
+    BEGIN 
+    { 
+        $originallocale = $PWD 
+        $iconfiles = Get-ChildItem $Path -Recurse -Force | Where-Object {$_.Name -like "FOLDER.ICO"} 
+        $iconfiles = $iconfiles.FullName 
+        $inifiles = Get-ChildItem $Path -Recurse -Force | where-Object {$_.Name -like "DESKTOP.INI"} 
+        $inifiles = $inifiles.FullName 
+    } 
+    PROCESS 
+    { 
+        Remove-Item $iconfiles -Force 
+        Remove-Item $inifiles -Force 
+        Set-Location $Path 
+        Set-Location .. 
+        Get-ChildItem | Where-Object {$_.FullName -eq "$Path"} | ForEach {$_.Attributes = 'Directory'}     
+    } 
+    END 
+    { 
+        Set-Location $originallocale 
+    } 
 }

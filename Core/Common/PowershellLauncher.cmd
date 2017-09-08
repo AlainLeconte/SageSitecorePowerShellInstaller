@@ -1,21 +1,51 @@
 @Echo OFF
-@Echo Launching Powershell as Administrator to execute script : 
-set psScript=%1
+Setlocal enabledelayedexpansion
+@Echo Launching Powershell as Administrator : 
+set cd=%1
+set cd=%cd:#= %
+@Echo CD: %cd%
+set psScript=%cd%%2
 @Echo psScript: %psScript%
 @Echo.
-shift
-if NOT @%1@==@@ @Echo Param1: %1
-if NOT @%2@==@@ @Echo Param2: %2
-if NOT @%3@==@@ @Echo Param3: %3
-if NOT @%4@==@@ @Echo Param4: %4
-if NOT @%5@==@@ @Echo Param5: %5
-if NOT @%6@==@@ @Echo Param6: %6
-if NOT @%7@==@@ @Echo Param7: %7
-if NOT @%8@==@@ @Echo Param8: %8
-if NOT @%9@==@@ @Echo Param9: %9
+set "psPath="
+call::funcGetPathOnly psPath "%psScript%"
+@Echo Create "%psPath%cd.ps1"
+@Echo $cd="%cd%" >"%psPath%cd.ps1"
+@Echo.
+set /a aIdx=0
+set /a pIdx=0
+for %%x in (%*) do (
+  set /a "aIdx+=1"
+  if !aIdx! geq 3 (
+    set /a "pIdx+=1"
+    ::@Echo p!pIdx!: %%x
+    set p=%%x
+    ::@Echo p!pIdx!:!p:#= !
+    If "!p:~0,1!" == "\" (
+      ::@Echo Relative path
+      set "p=%cd%!p!"
+    )
+    set "p!pIdx!=!p!"
+  )
+)
+::@Echo pIdx= %pIdx%
+for /l %%i in (1,1,%pIdx%) do (
+  @Echo p%%i: !p%%i!
+)
+@Echo.
 ::timeout /t 1
-PowerShell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {Start-Process -Wait PowerShell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File \"%psScript%\" \"%1\" \"%2\" \"%3\" \"%4\" \"%5\" \"%6\" \"%7\" \"%8\" \"%9\"' -Verb runAs}" 
+
+PowerShell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {Start-Process -Wait PowerShell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File \"%psScript%\" \"%p1%\" \"%p2%\" \"%p3%\" \"%p4%\" \"%p5%\" \"%p6%\" \"%p7%\" \"%p8%\" \"%p9%\"' -Verb runAs}" 
 @Echo.
 @Echo Powershell ended.
-timeout /t 2
-::PAUSE
+timeout /t 1
+call:funcDeleteCurrendDirFile %psScript%
+goto:eof
+
+:funcDeleteCurrendDirFile
+    del %~dp1\cd.ps1	
+goto:eof
+
+:funcGetPathOnly
+  set "%~1=%~dp2"
+goto:eof

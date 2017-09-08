@@ -12,6 +12,7 @@ $stdFuntionsPath = (split-path -parent $PSCommandPath)
 
 #$cd = $(Get-Location)
 $cd = $PSScriptRoot | split-path -parent
+. "$($PSScriptRoot + "\cd.ps1")"
 
 if ($clearHost -eq 1) {
     Clear-Host
