@@ -175,41 +175,24 @@ function Create-SitecoreConfigSet(
             $corePropertiesPath = "$targetSetPath\core.properties" 
             
             Write-Host
-            Write-Host Copying $targetSetPath\core.properties.disabled file to $corePropertiesPath ... -ForegroundColor Black -BackgroundColor White
+            Write-Host Copying $targetSetPath\core.properties.disabled file to $corePropertiesPath... -ForegroundColor Black -BackgroundColor White
             Copy-Item $targetSetPath\core.properties.disabled $corePropertiesPath -Force
             Write-Host $targetSetPath\core.properties.disabled copied to $corePropertiesPath -ForegroundColor Green
         
             Write-Host
-            Write-Host Updating $corePropertiesPath file ... -ForegroundColor Black -BackgroundColor White
+            Write-Host Updating $corePropertiesPath file... -ForegroundColor Black -BackgroundColor White
             (Get-Content $corePropertiesPath) -replace "<#coreName>",$sitecoreConfigSetName | Set-Content $corePropertiesPath         
             #(Get-Content $corePropertiesPath) -replace "<#coreName>",$sitecoreConfigSetName | Set-Content $corePropertiesPath         
             Write-Host $corePropertiesPath updated -ForegroundColor Green
 
             if ($isSlave -eq 1) {            
                 $solrConfigPath = "$targetSetPath\conf\solrconfig.xml" 
+
                 Write-Host
-                Write-Host Updating $solrConfigPath file ... -ForegroundColor Black -BackgroundColor White
+                Write-Host Updating $solrConfigPath file... -ForegroundColor Black -BackgroundColor White
                 (Get-Content $solrConfigPath) -replace "#SolrMasterDNS",$solrMasterDNS | Set-Content $solrConfigPath         
                 Write-Host $solrConfigPath updated -ForegroundColor Green
             }
-
-
-            <#
-            if ($sitecoreConfigSetName.StartsWith("commerce_")) {
-                Write-Host
-                Write-Host Processing Commerce cores ... -ForegroundColor Black -BackgroundColor White
-                $source = "$targetSetPath\conf\schema-Commerce.xml"
-                $target = "$targetSetPath\conf\schema.xml"
-                if (Test-Path($source)) {
-                    Write-Host Copying $source to $target ... -ForegroundColor Black -BackgroundColor White
-                    Copy-Item -Path $source -Destination $target -Force
-                    Write-Host "$source copied"  -ForegroundColor Green
-                }
-                else {
-                    Write-Host "Could not find $source" -ForegroundColor Red
-                }
-            }
-            #>
 
             Write-Host
 		    Write-Host "Created $sitecoreConfigSetName Solr config set."
