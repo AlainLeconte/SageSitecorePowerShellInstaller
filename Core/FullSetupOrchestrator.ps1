@@ -137,7 +137,7 @@ try {
         Write-Host
         
         $urlRewriteMsi = "C:\Sage\SitecoreSites\SitecoreInstallation\ThirdParty\UrlRewrite\RewriteExtensibility.msi"
-        Write-Host-Info -Message "Installing UrlRewrite Extensibility($urlRewriteMsi) ..."
+        Write-Host-Info -Message "Installing UrlRewrite Extensibility ($urlRewriteMsi) ..."
         Start-Process msiexec.exe -ArgumentList " /q /i $urlRewriteMsi" -Wait -PassThru
         if ($process.ExitCode -ne 0) {Throw "Install UrlRewrite Extensibility generate an error !"}
         Write-Host UrlRewrite Extensibility installed -ForegroundColor Green
@@ -313,7 +313,26 @@ try {
             }
             Write-Host PDDFilter Dlls copied -ForegroundColor Green
         }
-        
+
+
+        # Register custom languages 
+        # C:\Windows\Globalization[en-AE.nlp|en-KE.nlp| en-NG.nlp]
+        # Copy NLP files
+        if ( -not(Test-Path ("C:\Windows\Globalization\en-AE.nlp")) -or -not(Test-Path ("C:\Windows\Globalization\en-KE.nlp")) -or  -not(Test-Path ("C:\Windows\Globalization\en-NG.nlp")) ) {
+            $source = "C:\Sage\SitecoreSites\SitecoreInstallation\ThirdParty\NewLanguages"
+            $target = "C:\Windows\Globalization"
+            Write-Host-Info -Message "Copying NLP files from $source to $target ..."
+            Get-ChildItem $source\* -Include *.nlpl | ForEach{
+                Write-Host Copying $_.fullName
+                Copy-Item -Path $_.fullName -Destination $target -Force
+            }
+            Write-Host Custom Languages NLP files copied -ForegroundColor Green
+        }
+        # Register new languages
+        Write-Host-Info -Message "Registering en[AE|KE|NG] custom languages ..."
+        $process = Start-Process reg -ArgumentList "import `"C:\Sage\SitecoreSites\SitecoreInstallation\ThirdParty\NewLanguages\RegisterNewLanguages.reg`"" -PassThru -Wait
+        if ($process.ExitCode -ne 0) {Throw "Register en[AE|KE|NG] custom languages generate an error !"}
+        Write-Host "en[AE|KE|NG] custom languages registered" -ForegroundColor Green
     
         # Build Unity.Master.sln 
         $solutionPath = "C:\Sage\TFS\Global Web Development\Unity\Source\Main\Unity.Master.sln"

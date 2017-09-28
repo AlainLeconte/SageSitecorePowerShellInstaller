@@ -11,7 +11,7 @@ function Start-Browser([string]$url)
     $ie.navigate($url)
     #>
     Initialize-SitecoreApplication
-    START $url -Wait
+    START $url
 }
 
 

@@ -2360,7 +2360,7 @@ function Initialize-WebSite
                 Add-Content $hostsPath $hostEntry
                 
                 # Fix issue >>
-                Start-Sleep -Seconds 5
+                Start-Sleep -Seconds 1
                 # << Fix issue
             }
 

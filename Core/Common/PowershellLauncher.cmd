@@ -25,7 +25,11 @@ for %%x in (%*) do (
       ::@Echo Relative path
       set "p=%cd%!p!"
     )
-    set "p!pIdx!=!p!"
+    If "!p:~0,1!" == "-" (
+      set "p!pIdx!=!p!"
+    ) else (
+      set "p!pIdx!=\"!p!\""
+    )
   )
 )
 ::@Echo pIdx= %pIdx%
@@ -34,8 +38,7 @@ for /l %%i in (1,1,%pIdx%) do (
 )
 @Echo.
 ::timeout /t 1
-
-PowerShell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {Start-Process -Wait PowerShell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File \"%psScript%\" \"%p1%\" \"%p2%\" \"%p3%\" \"%p4%\" \"%p5%\" \"%p6%\" \"%p7%\" \"%p8%\" \"%p9%\"' -Verb runAs}" 
+PowerShell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {Start-Process -Wait PowerShell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File \"%psScript%\" %p1% %p2% %p3% %p4% %p5% %p6% %p7% %p8% %p9%' -Verb runAs}" 
 @Echo.
 @Echo Powershell ended.
 timeout /t 1

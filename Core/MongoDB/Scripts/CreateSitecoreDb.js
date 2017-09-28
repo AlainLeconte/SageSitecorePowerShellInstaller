@@ -1,5 +1,11 @@
 var db = db.getSiblingDB('admin');
 db.dropAllUsers({w: "majority", wtimeout: 5000});
+
+printjson("changed the authSchema value to 3 (which stands for MONGODB-CR)");
+var schema = db.system.version.findOne({"_id" : "authSchema"}) 
+schema.currentVersion = 3 
+db.system.version.save(schema)  
+
 db.createUser(
   {
     user: "MongoAdminUser",
